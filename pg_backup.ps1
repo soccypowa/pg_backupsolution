@@ -90,9 +90,15 @@ function New-PgBackup {
   }
   # Schema-Only backups
   if ($SchemaOnlyDatabases -ne '') {
-    $databases = psql.exe -h $ComputerName -U $UserName -At -c "SELECT datname FROM pg_database WHERE datname = ANY(ARRAY[])"
-    Write-Host 'Performing schema-only backup of database '
+    $SchemaOnlyDatabases = (($SCHEMA_ONLY_LIST).Split(',') | ForEach-Object { "'$_'" }) -join ','
+    $databases = psql.exe -h $ComputerName -U $UserName -d postgres -At -c "SELECT datname FROM pg_database WHERE datname = ANY(ARRAY[$SchemaOnlyDatabases]) AND datistemplate = false AND datallowconn = true"
+    foreach ($database  in $databases) {
+      Write-Host "Performing schema-only backup of database $database"
+      $schemaBackupFile = Join-Path $FullPathBackupdir "${database}_SCHEMA.sql"
+      pg_dump.exe -Fp -s -h $ComputerName -U $UserName -d $database | Out-File -FilePath $schemaBackupFile -Encoding utf8; Compress-Archive -Path $schemaBackupFile -DestinationPath "$schemaBackupFile.zip"; Remove-Item $schemaBackupFile 
+    }
   }
+  
 }
 
 
