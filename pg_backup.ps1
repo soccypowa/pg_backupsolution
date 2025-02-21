@@ -51,14 +51,20 @@ function New-PgBackup {
     [string]
     $Path
   )
-  # TODO: Check that we can find the pqsl executables, and make them full paths?
   
   $BackupDate = Get-Date -Format 'yyyy-MM-dd'
   $FullPathBackupdir = Join-Path $Path "$($BackupDate)-$($Type)"
 
+  # Create folder if not exists
   if (-not (Test-Path $FullPathBackupdir)) {
     New-Item -ItemType Directory -Path $FullPathBackupdir -Force | Out-Null
   }
+
+  # Check so that pg-commands are reachable
+  $pg_dumpall = Get-Command pg_dumpall.exe
+  $pg_dump = Get-Command pg_dump.exe
+
+    # TODO: We should always overwite files, for simplicity
 }
 
 
