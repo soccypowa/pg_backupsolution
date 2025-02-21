@@ -38,7 +38,9 @@ function Remove-PgBackup {
     [int]
     $NumberToKeep
   )
-  Get-ChildItem -Name $Path -Directory | Where-Object { $_.Name -like "*-$($Type)" } | ForEach-Object { Remove-Item $_.FullName -Recurse -Force } 
+  if (Test-Path $Path) {
+    Get-ChildItem -Name $Path -Directory | Where-Object { $_.Name -like "*-$($Type)" } | ForEach-Object { Remove-Item $_.FullName -Recurse -Force } 
+  }
 }
 
 function New-PgBackup {
@@ -49,7 +51,20 @@ function New-PgBackup {
     $Type,
     [Parameter(Mandatory = $true)]
     [string]
-    $Path
+    $Path,
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('yes', 'no')]
+    [string]
+    $BackupGlobals,
+    [Parameter(Mandatory = $false)]
+    [string]
+    $ComputerName = $env:COMPUTERNAME,
+    [Parameter(Mandatory = $false)]
+    [string]
+    $UserName = 'postgres',
+    [Parameter(Mandatory = $false)]
+    [string]
+    $SchemaOnlyDatabases = ''
   )
   
   $BackupDate = Get-Date -Format 'yyyy-MM-dd'
@@ -61,10 +76,23 @@ function New-PgBackup {
   }
 
   # Check so that pg-commands are reachable
-  $pg_dumpall = Get-Command pg_dumpall.exe
-  $pg_dump = Get-Command pg_dump.exe
+  Get-Command pg_dumpall.exe | Out-Null
+  Get-Command pg_dump.exe | Out-Null
+  Get-Command psql.exe | Out-Null
+  
+  # TODO: We should always overwite files, for simplicity
 
-    # TODO: We should always overwite files, for simplicity
+  # Global backups
+  if ($BackupGlobals -eq 'yes') {
+    Write-Host 'Performing globals backup'
+    $GlobalsBackupFile = Join-Path $FullPathBackupdir 'globals.sql'
+    pg_dumpall.exe -g -h $ComputerName -U $UserName | Out-File -FilePath $GlobalsBackupFile -Encoding utf8; Compress-Archive -Path $GlobalsBackupFile -DestinationPath "$GlobalsBackupFile.zip" -Force; Remove-Item $GlobalsBackupFile
+  }
+  # Schema-Only backups
+  if ($SchemaOnlyDatabases -ne '') {
+    $databases = psql.exe -h $ComputerName -U $UserName -At -c "SELECT datname FROM pg_database WHERE datname = ANY(ARRAY[])"
+    Write-Host 'Performing schema-only backup of database '
+  }
 }
 
 
@@ -75,12 +103,12 @@ New-PgBackupConfig -ConfigFile $ConfigFile
 Get-Variable -Scope script
 if ($DayOfMonth -eq 1) {
   Remove-PgBackup -Type monthly -Path $BACKUP_DIR -NumberToKeep $MONTHS_TO_KEEP
-  New-PgBackup -Type monthly -Path $BACKUP_DIR
+  New-PgBackup -Type monthly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
 } elseif ($DayOfWeek -eq $DAY_OF_WEEK_TO_KEEP) {
   Remove-PgBackup -Type weekly -Path $BACKUP_DIR -NumberToKeep $WEEKS_TO_KEEP
-  New-PgBackup -Type weekly -Path $BACKUP_DIR
+  New-PgBackup -Type weekly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
 } else {
   Remove-PgBackup -Type daily -Path $BACKUP_DIR -NumberToKeep $DAYS_TO_KEEP 
-  New-PgBackup -Type daily -Path $BACKUP_DIR
+  New-PgBackup -Type daily -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
 }
 
