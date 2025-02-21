@@ -64,7 +64,16 @@ function New-PgBackup {
     $UserName = 'postgres',
     [Parameter(Mandatory = $false)]
     [string]
-    $SchemaOnlyDatabases = ''
+    $SchemaOnlyDatabases = '',
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('yes', 'no')]
+    [string]
+    $PlainBackups,
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('yes', 'no')]
+    [string]
+    $CustomBackups
+    
   )
   
   $BackupDate = Get-Date -Format 'yyyy-MM-dd'
@@ -95,10 +104,25 @@ function New-PgBackup {
     foreach ($database  in $databases) {
       Write-Host "Performing schema-only backup of database $database"
       $schemaBackupFile = Join-Path $FullPathBackupdir "${database}_SCHEMA.sql"
-      pg_dump.exe -Fp -s -h $ComputerName -U $UserName -d $database | Out-File -FilePath $schemaBackupFile -Encoding utf8; Compress-Archive -Path $schemaBackupFile -DestinationPath "$schemaBackupFile.zip"; Remove-Item $schemaBackupFile 
+      pg_dump.exe -Fp -s -h $ComputerName -U $UserName -d $database | Out-File -FilePath $schemaBackupFile -Encoding utf8; Compress-Archive -Path $schemaBackupFile -DestinationPath "$schemaBackupFile.zip" -Force; Remove-Item $schemaBackupFile 
     }
   }
-  
+  # Full backups
+  $SchemaOnlyDatabases = (($SCHEMA_ONLY_LIST).Split(',') | ForEach-Object { "'$_'" }) -join ','
+  $databases = psql.exe -h $ComputerName -U $UserName -d postgres -At -c "SELECT datname FROM pg_database WHERE datname NOT IN ($SchemaOnlyDatabases) AND datistemplate = false AND datallowconn = true"
+  foreach ($database in $databases) {
+    if ($PlainBackups -eq 'yes') {
+      Write-Host "Plain backup of database $database"
+      $plainBackupFile = Join-Path $FullPathBackupdir "${database}.sql"
+      pg_dump.exe -Fp -h $ComputerName -U $UserName -d $database | Out-File -FilePath $plainBackupFile -Encoding utf8; Compress-Archive -Path $PlainBackupFile -DestinationPath "$PlainBackupFile.zip" -Force; Remove-Item $PlainBackupFile
+    }
+    if ($CustomBackups -eq 'yes') {
+      Write-Host "Custom backup of database $database"
+      $customBackupFile = Join-Path $FullPathBackupdir "${database}.bak"
+      pg_dump.exe -Fc -h $HOSTNAME -U $USERNAME -d $database -f $customBackupFile
+    }
+  }
+  Write-Host "All database backups complete!"
 }
 
 
@@ -106,15 +130,14 @@ $DayOfMonth = (Get-Date).Day
 $DayOfWeek = (Get-Date).DayOfWeek.value__
 
 New-PgBackupConfig -ConfigFile $ConfigFile
-Get-Variable -Scope script
 if ($DayOfMonth -eq 1) {
   Remove-PgBackup -Type monthly -Path $BACKUP_DIR -NumberToKeep $MONTHS_TO_KEEP
-  New-PgBackup -Type monthly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
+  New-PgBackup -Type monthly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST -PlainBackups $ENABLE_PLAIN_BACKUPS -CustomBackups $ENABLE_CUSTOM_BACKUPS
 } elseif ($DayOfWeek -eq $DAY_OF_WEEK_TO_KEEP) {
   Remove-PgBackup -Type weekly -Path $BACKUP_DIR -NumberToKeep $WEEKS_TO_KEEP
-  New-PgBackup -Type weekly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
+  New-PgBackup -Type weekly -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST -PlainBackups $ENABLE_PLAIN_BACKUPS -CustomBackups $ENABLE_CUSTOM_BACKUPS
 } else {
   Remove-PgBackup -Type daily -Path $BACKUP_DIR -NumberToKeep $DAYS_TO_KEEP 
-  New-PgBackup -Type daily -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST
+  New-PgBackup -Type daily -Path $BACKUP_DIR -BackupGlobals $ENABLE_GLOBALS_BACKUPS -ComputerName $HOSTNAME -UserName $USERNAME -SchemaOnlyDatabases $SCHEMA_ONLY_LIST -PlainBackups $ENABLE_PLAIN_BACKUPS -CustomBackups $ENABLE_CUSTOM_BACKUPS
 }
 
