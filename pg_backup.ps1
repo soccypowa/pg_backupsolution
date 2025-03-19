@@ -1,13 +1,13 @@
 param(
   # Path to the mandatory Config file
-  [Parameter(Mandatory = $true)]
+  [Parameter(Mandatory)]
   [string]
   $ConfigFile
 )
 
 function New-PgBackupConfig {
   param (
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [string]
     $ConfigFile
   )
@@ -27,14 +27,14 @@ function New-PgBackupConfig {
 }
 function Remove-PgBackup {
   param (
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet('daily', 'weekly', 'monthly')]
     [string]
     $Type,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [string]
     $Path,
-    [Parameter(Mandatory = $false)]
+    [Parameter]
     [int]
     $NumberToKeep
   )
@@ -46,31 +46,31 @@ function Remove-PgBackup {
 
 function New-PgBackup {
   param (
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet('daily', 'weekly', 'monthly')]
     [string]
     $Type,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [string]
     $Path,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet('yes', 'no')]
     [string]
     $BackupGlobals,
-    [Parameter(Mandatory = $false)]
+    [Parameter]
     [string]
     $ComputerName = $env:COMPUTERNAME,
-    [Parameter(Mandatory = $false)]
+    [Parameter]
     [string]
     $UserName = 'postgres',
-    [Parameter(Mandatory = $false)]
+    [Parameter]
     [string]
     $SchemaOnlyDatabases = '',
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet('yes', 'no')]
     [string]
     $PlainBackups,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [ValidateSet('yes', 'no')]
     [string]
     $CustomBackups
