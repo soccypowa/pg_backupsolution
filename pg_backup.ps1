@@ -34,7 +34,7 @@ function Remove-PgBackup {
     [Parameter(Mandatory)]
     [System.IO.FileInfo]
     $Path,
-    [Parameter]
+    [Parameter()]
     [int]
     $NumberToKeep
   )
@@ -57,13 +57,13 @@ function New-PgBackup {
     [ValidateSet('yes', 'no')]
     [string]
     $BackupGlobals,
-    [Parameter]
+    [Parameter()]
     [string]
     $ComputerName = $env:COMPUTERNAME,
-    [Parameter]
+    [Parameter()]
     [string]
     $UserName = 'postgres',
-    [Parameter]
+    [Parameter()]
     [string]
     $SchemaOnlyDatabases = '',
     [Parameter(Mandatory)]
