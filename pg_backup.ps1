@@ -38,8 +38,9 @@ function Remove-PgBackup {
     [int]
     $NumberToKeep
   )
+
   if (Test-Path $Path) {
-    Get-ChildItem -Name $Path -Directory | Where-Object { $_.Name -like "*-$($Type)" } | ForEach-Object { Remove-Item $_.FullName -Recurse -Force } 
+    Get-ChildItem -Path $Path\*-$($Type) -Directory | Select-Object -SkipLast $NumberToKeep | ForEach-Object { Remove-Item $_.FullName -Recurse -Force } 
   }
 }
 
