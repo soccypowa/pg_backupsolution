@@ -1,14 +1,14 @@
 param(
   # Path to the mandatory Config file
   [Parameter(Mandatory)]
-  [string]
+  [System.IO.FileInfo]
   $ConfigFile
 )
 
 function New-PgBackupConfig {
   param (
     [Parameter(Mandatory)]
-    [string]
+    [System.IO.FileInfo]
     $ConfigFile
   )
   if (!(Test-Path $ConfigFile)) {
@@ -32,7 +32,7 @@ function Remove-PgBackup {
     [string]
     $Type,
     [Parameter(Mandatory)]
-    [string]
+    [System.IO.FileInfo]
     $Path,
     [Parameter]
     [int]
@@ -51,7 +51,7 @@ function New-PgBackup {
     [string]
     $Type,
     [Parameter(Mandatory)]
-    [string]
+    [System.IO.FileInfo]
     $Path,
     [Parameter(Mandatory)]
     [ValidateSet('yes', 'no')]
@@ -74,7 +74,6 @@ function New-PgBackup {
     [ValidateSet('yes', 'no')]
     [string]
     $CustomBackups
-    
   )
   
   $BackupDate = Get-Date -Format 'yyyy-MM-dd'
